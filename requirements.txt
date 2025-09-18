@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+pydantic
+scikit-learn
+matplotlib
+plotly
+requests
+PyPDF2
+pytesseract
+Pillow
+reportlab
+python-multipart
+sqlalchemy
+joblib
+pandas
+numpy
