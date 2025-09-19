@@ -10,13 +10,14 @@ import os
 import logging
 import re
 
-from .database import get_db
+from .database import get_db, User, Prediction, Chat, Report  # Import models from database
 from .schemas import (
-    UserBase, UserCreate, User, PredictionCreate, Prediction, 
-    ChatCreate, Chat, ReportCreate, Report, HealthData
+    UserBase, UserCreate, User as UserSchema, 
+    PredictionCreate, Prediction as PredictionSchema, 
+    ChatCreate, Chat as ChatSchema, 
+    ReportCreate, Report as ReportSchema, 
+    HealthData
 )
-from .models import User as UserModel, Prediction as PredictionModel, \
-                   Chat as ChatModel, Report as ReportModel
 from .ml_model import predictor
 from .gemini_client import gemini_client
 from .pdf_processor import pdf_processor
@@ -79,20 +80,20 @@ async def health_check(db: Session = Depends(get_db)):
             detail=f"Health check failed: {str(e)}"
         )
 
-@app.post("/users/", response_model=User, status_code=status.HTTP_201_CREATED)
+@app.post("/users/", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     try:
         # Validate email
         validate_email(user.email)
         
-        db_user = db.query(UserModel).filter(UserModel.email == user.email).first()
+        db_user = db.query(User).filter(User.email == user.email).first()
         if db_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
             )
         
-        db_user = UserModel(**user.dict())
+        db_user = User(**user.dict())
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
@@ -108,7 +109,7 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
             detail=f"Error creating user: {str(e)}"
         )
 
-@app.post("/predict/", response_model=Prediction)
+@app.post("/predict/", response_model=PredictionSchema)
 async def predict_disease_risk(health_data: HealthData, db: Session = Depends(get_db)):
     try:
         # Predict risk using ML model
@@ -140,7 +141,7 @@ async def predict_disease_risk(health_data: HealthData, db: Session = Depends(ge
         recommendations = '\n'.join(lines[1:]) if len(lines) > 1 else "Consult with healthcare provider"
         
         # Save prediction to database
-        db_prediction = PredictionModel(
+        db_prediction = Prediction(
             user_id=health_data.user_id,
             disease="Diabetes",
             risk=risk_score,
@@ -163,7 +164,7 @@ async def predict_disease_risk(health_data: HealthData, db: Session = Depends(ge
             detail=f"Prediction error: {str(e)}"
         )
 
-@app.post("/chat/", response_model=Chat)
+@app.post("/chat/", response_model=ChatSchema)
 async def chat_with_assistant(chat_data: ChatCreate, db: Session = Depends(get_db)):
     try:
         # Forward query to Gemini
@@ -180,7 +181,7 @@ async def chat_with_assistant(chat_data: ChatCreate, db: Session = Depends(get_d
         response = gemini_client.call_gemini(prompt)
         
         # Save chat to database
-        db_chat = ChatModel(
+        db_chat = Chat(
             user_id=chat_data.user_id,
             query=chat_data.query,
             response=response
@@ -200,7 +201,7 @@ async def chat_with_assistant(chat_data: ChatCreate, db: Session = Depends(get_d
             detail=f"Chat error: {str(e)}"
         )
 
-@app.post("/analyze-report/", response_model=Report)
+@app.post("/analyze-report/", response_model=ReportSchema)
 async def analyze_medical_report(
     user_id: int = Form(...),
     file: UploadFile = File(...),
@@ -229,7 +230,7 @@ async def analyze_medical_report(
         advice = parts[1] if len(parts) > 1 else "Consult with healthcare provider"
         
         # Save to database
-        db_report = ReportModel(
+        db_report = Report(
             user_id=user_id,
             findings=findings,
             advice=advice,
@@ -260,7 +261,7 @@ async def generate_comprehensive_report(
 ):
     try:
         # Get user data
-        user = db.query(UserModel).filter(UserModel.id == user_id).first()
+        user = db.query(User).filter(User.id == user_id).first()
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -270,9 +271,9 @@ async def generate_comprehensive_report(
         # Get prediction data
         prediction_data = None
         if prediction_id:
-            prediction = db.query(PredictionModel).filter(
-                PredictionModel.id == prediction_id,
-                PredictionModel.user_id == user_id
+            prediction = db.query(Prediction).filter(
+                Prediction.id == prediction_id,
+                Prediction.user_id == user_id
             ).first()
             if prediction:
                 prediction_data = {
@@ -285,9 +286,9 @@ async def generate_comprehensive_report(
         # Get chat summary
         chat_summary = ""
         if chat_id:
-            chat = db.query(ChatModel).filter(
-                ChatModel.id == chat_id,
-                ChatModel.user_id == user_id
+            chat = db.query(Chat).filter(
+                Chat.id == chat_id,
+                Chat.user_id == user_id
             ).first()
             if chat:
                 chat_summary = f"Q: {chat.query}\nA: {chat.response}"
@@ -295,9 +296,9 @@ async def generate_comprehensive_report(
         # Get report findings
         report_findings = ""
         if report_id:
-            report = db.query(ReportModel).filter(
-                ReportModel.id == report_id,
-                ReportModel.user_id == user_id
+            report = db.query(Report).filter(
+                Report.id == report_id,
+                Report.user_id == user_id
             ).first()
             if report:
                 report_findings = f"Findings: {report.findings}\nAdvice: {report.advice}"
@@ -327,12 +328,12 @@ async def generate_comprehensive_report(
             detail=f"Report generation error: {str(e)}"
         )
 
-@app.get("/history/predictions/{user_id}", response_model=List[Prediction])
+@app.get("/history/predictions/{user_id}", response_model=List[PredictionSchema])
 def get_prediction_history(user_id: int, db: Session = Depends(get_db)):
     try:
-        predictions = db.query(PredictionModel).filter(
-            PredictionModel.user_id == user_id
-        ).order_by(PredictionModel.created_at.desc()).all()
+        predictions = db.query(Prediction).filter(
+            Prediction.user_id == user_id
+        ).order_by(Prediction.created_at.desc()).all()
         return predictions
     except Exception as e:
         logger.error(f"Error fetching prediction history: {e}")
@@ -341,12 +342,12 @@ def get_prediction_history(user_id: int, db: Session = Depends(get_db)):
             detail=f"Error fetching prediction history: {str(e)}"
         )
 
-@app.get("/history/chats/{user_id}", response_model=List[Chat])
+@app.get("/history/chats/{user_id}", response_model=List[ChatSchema])
 def get_chat_history(user_id: int, db: Session = Depends(get_db)):
     try:
-        chats = db.query(ChatModel).filter(
-            ChatModel.user_id == user_id
-        ).order_by(ChatModel.created_at.desc()).all()
+        chats = db.query(Chat).filter(
+            Chat.user_id == user_id
+        ).order_by(Chat.created_at.desc()).all()
         return chats
     except Exception as e:
         logger.error(f"Error fetching chat history: {e}")
@@ -355,12 +356,12 @@ def get_chat_history(user_id: int, db: Session = Depends(get_db)):
             detail=f"Error fetching chat history: {str(e)}"
         )
 
-@app.get("/history/reports/{user_id}", response_model=List[Report])
+@app.get("/history/reports/{user_id}", response_model=List[ReportSchema])
 def get_report_history(user_id: int, db: Session = Depends(get_db)):
     try:
-        reports = db.query(ReportModel).filter(
-            ReportModel.user_id == user_id
-        ).order_by(ReportModel.created_at.desc()).all()
+        reports = db.query(Report).filter(
+            Report.user_id == user_id
+        ).order_by(Report.created_at.desc()).all()
         return reports
     except Exception as e:
         logger.error(f"Error fetching report history: {e}")
