@@ -1,9 +1,13 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, status
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import json
 from datetime import datetime
+import os
+import logging
 
 from .database import get_db
 from .schemas import (
@@ -17,19 +21,78 @@ from .gemini_client import gemini_client
 from .pdf_processor import pdf_processor
 from .report_generator import report_generator
 
-app = FastAPI(title="AI Health Assistant", version="1.0.0")
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-@app.post("/users/", response_model=User)
+app = FastAPI(
+    title="AI Health Assistant API",
+    description="AI-powered disease risk prediction and health assistance",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Serve static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/", include_in_schema=False)
+async def root():
+    return {"message": "AI Health Assistant API is running", "status": "healthy"}
+
+@app.get("/health")
+async def health_check(db: Session = Depends(get_db)):
+    """Health check endpoint"""
+    try:
+        # Test database connection
+        db.execute("SELECT 1")
+        model_status = "loaded" if predictor.model is not None else "not loaded"
+        
+        return {
+            "status": "healthy",
+            "database": "connected",
+            "model": model_status,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Health check failed: {str(e)}"
+        )
+
+@app.post("/users/", response_model=User, status_code=status.HTTP_201_CREATED)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    db_user = db.query(UserModel).filter(UserModel.email == user.email).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    db_user = UserModel(**user.dict())
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
+    try:
+        db_user = db.query(UserModel).filter(UserModel.email == user.email).first()
+        if db_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+        
+        db_user = UserModel(**user.dict())
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        logger.info(f"User created: {db_user.email}")
+        return db_user
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating user: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating user: {str(e)}"
+        )
 
 @app.post("/predict/", response_model=Prediction)
 async def predict_disease_risk(health_data: HealthData, db: Session = Depends(get_db)):
@@ -57,7 +120,7 @@ async def predict_disease_risk(health_data: HealthData, db: Session = Depends(ge
         
         gemini_response = gemini_client.call_gemini(prompt)
         
-        # Parse response (this is simplified - you might want more structured parsing)
+        # Parse response
         lines = gemini_response.split('\n')
         explanation = lines[0] if lines else "Risk assessment completed"
         recommendations = '\n'.join(lines[1:]) if len(lines) > 1 else "Consult with healthcare provider"
@@ -68,16 +131,23 @@ async def predict_disease_risk(health_data: HealthData, db: Session = Depends(ge
             disease="Diabetes",
             risk=risk_score,
             explanation=explanation,
-            recommendations=recommendations
+            recommendations=recommendations,
+            input_data=json.dumps(health_data.dict())
         )
         db.add(db_prediction)
         db.commit()
         db.refresh(db_prediction)
         
+        logger.info(f"Prediction created for user {health_data.user_id}: risk {risk_score}")
         return db_prediction
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
+        db.rollback()
+        logger.error(f"Prediction error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Prediction error: {str(e)}"
+        )
 
 @app.post("/chat/", response_model=Chat)
 async def chat_with_assistant(chat_data: ChatCreate, db: Session = Depends(get_db)):
@@ -105,10 +175,16 @@ async def chat_with_assistant(chat_data: ChatCreate, db: Session = Depends(get_d
         db.commit()
         db.refresh(db_chat)
         
+        logger.info(f"Chat response generated for user {chat_data.user_id}")
         return db_chat
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
+        db.rollback()
+        logger.error(f"Chat error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Chat error: {str(e)}"
+        )
 
 @app.post("/analyze-report/", response_model=Report)
 async def analyze_medical_report(
@@ -128,12 +204,12 @@ async def analyze_medical_report(
         3. General health advice based on the report
         
         Medical Report Content:
-        {extracted_text[:4000]}  # Limit length
+        {extracted_text[:4000]}
         """
         
         analysis = gemini_client.call_gemini(prompt)
         
-        # Split into findings and advice (simplified)
+        # Split into findings and advice
         parts = analysis.split('\n\n', 1)
         findings = parts[0] if parts else "No specific findings"
         advice = parts[1] if len(parts) > 1 else "Consult with healthcare provider"
@@ -142,16 +218,23 @@ async def analyze_medical_report(
         db_report = ReportModel(
             user_id=user_id,
             findings=findings,
-            advice=advice
+            advice=advice,
+            file_name=file.filename
         )
         db.add(db_report)
         db.commit()
         db.refresh(db_report)
         
+        logger.info(f"Report analyzed for user {user_id}: {file.filename}")
         return db_report
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Report analysis error: {str(e)}")
+        db.rollback()
+        logger.error(f"Report analysis error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Report analysis error: {str(e)}"
+        )
 
 @app.post("/generate-report/")
 async def generate_comprehensive_report(
@@ -165,7 +248,10 @@ async def generate_comprehensive_report(
         # Get user data
         user = db.query(UserModel).filter(UserModel.id == user_id).first()
         if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
         
         # Get prediction data
         prediction_data = None
@@ -213,6 +299,7 @@ async def generate_comprehensive_report(
             user_data, prediction_data or {}, chat_summary, report_findings
         )
         
+        logger.info(f"Report generated for user {user_id}: {filepath}")
         return FileResponse(
             filepath, 
             filename="health_report.pdf",
@@ -220,33 +307,59 @@ async def generate_comprehensive_report(
         )
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Report generation error: {str(e)}")
+        logger.error(f"Report generation error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Report generation error: {str(e)}"
+        )
 
 @app.get("/history/predictions/{user_id}", response_model=List[Prediction])
 def get_prediction_history(user_id: int, db: Session = Depends(get_db)):
-    predictions = db.query(PredictionModel).filter(
-        PredictionModel.user_id == user_id
-    ).order_by(PredictionModel.created_at.desc()).all()
-    return predictions
+    try:
+        predictions = db.query(PredictionModel).filter(
+            PredictionModel.user_id == user_id
+        ).order_by(PredictionModel.created_at.desc()).all()
+        return predictions
+    except Exception as e:
+        logger.error(f"Error fetching prediction history: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching prediction history: {str(e)}"
+        )
 
 @app.get("/history/chats/{user_id}", response_model=List[Chat])
 def get_chat_history(user_id: int, db: Session = Depends(get_db)):
-    chats = db.query(ChatModel).filter(
-        ChatModel.user_id == user_id
-    ).order_by(ChatModel.created_at.desc()).all()
-    return chats
+    try:
+        chats = db.query(ChatModel).filter(
+            ChatModel.user_id == user_id
+        ).order_by(ChatModel.created_at.desc()).all()
+        return chats
+    except Exception as e:
+        logger.error(f"Error fetching chat history: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching chat history: {str(e)}"
+        )
 
 @app.get("/history/reports/{user_id}", response_model=List[Report])
 def get_report_history(user_id: int, db: Session = Depends(get_db)):
-    reports = db.query(ReportModel).filter(
-        ReportModel.user_id == user_id
-    ).order_by(ReportModel.created_at.desc()).all()
-    return reports
+    try:
+        reports = db.query(ReportModel).filter(
+            ReportModel.user_id == user_id
+        ).order_by(ReportModel.created_at.desc()).all()
+        return reports
+    except Exception as e:
+        logger.error(f"Error fetching report history: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching report history: {str(e)}"
+        )
 
-@app.get("/")
-def read_root():
-    return {"message": "AI Health Assistant API is running"}
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+# Error handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    logger.error(f"Unhandled exception: {exc}")
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Internal server error"}
+    )
