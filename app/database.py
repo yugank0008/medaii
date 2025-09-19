@@ -93,3 +93,6 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# Export models for easy import
+__all__ = ['User', 'Prediction', 'Chat', 'Report', 'get_db', 'Base']
