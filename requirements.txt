@@ -18,3 +18,4 @@ python-dotenv
 gunicorn
 psycopg2-binary
 alembic
+email-validator
