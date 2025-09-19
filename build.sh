@@ -17,8 +17,11 @@ mkdir -p logs
 echo "Setting up database..."
 python -c "
 from app.database import engine, Base
-Base.metadata.create_all(bind=engine)
-print('Database tables created successfully')
+try:
+    Base.metadata.create_all(bind=engine)
+    print('Database tables created successfully')
+except Exception as e:
+    print(f'Database setup error: {e}')
 "
 
 # Train or load ML model
@@ -54,5 +57,16 @@ except Exception as e:
     print(f'Model loading failed: {e}')
 "
 fi
+
+echo "Testing imports..."
+python -c "
+try:
+    from app.main import app
+    from app.database import User, Prediction, Chat, Report
+    print('All imports successful')
+except Exception as e:
+    print(f'Import error: {e}')
+    raise
+"
 
 echo "=== Build Completed Successfully ==="
