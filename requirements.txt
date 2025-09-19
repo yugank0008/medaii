@@ -14,3 +14,7 @@ sqlalchemy
 joblib
 pandas
 numpy
+python-dotenv
+gunicorn
+psycopg2-binary
+alembic
