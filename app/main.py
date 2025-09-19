@@ -8,10 +8,11 @@ import json
 from datetime import datetime
 import os
 import logging
+import re
 
 from .database import get_db
 from .schemas import (
-    UserCreate, User, PredictionCreate, Prediction, 
+    UserBase, UserCreate, User, PredictionCreate, Prediction, 
     ChatCreate, Chat, ReportCreate, Report, HealthData
 )
 from .models import User as UserModel, Prediction as PredictionModel, \
@@ -45,6 +46,14 @@ app.add_middleware(
 # Serve static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Email validation function
+def validate_email(email: str):
+    if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid email format"
+        )
+
 @app.get("/", include_in_schema=False)
 async def root():
     return {"message": "AI Health Assistant API is running", "status": "healthy"}
@@ -73,6 +82,9 @@ async def health_check(db: Session = Depends(get_db)):
 @app.post("/users/", response_model=User, status_code=status.HTTP_201_CREATED)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     try:
+        # Validate email
+        validate_email(user.email)
+        
         db_user = db.query(UserModel).filter(UserModel.email == user.email).first()
         if db_user:
             raise HTTPException(
@@ -86,6 +98,8 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
         db.refresh(db_user)
         logger.info(f"User created: {db_user.email}")
         return db_user
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         logger.error(f"Error creating user: {e}")
@@ -292,7 +306,7 @@ async def generate_comprehensive_report(
         user_data = {
             'name': user.name,
             'email': user.email,
-            'age': 30  # This should come from user profile
+            'age': 30
         }
         
         filepath = report_generator.generate_health_report(
