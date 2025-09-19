@@ -5,12 +5,12 @@ services:
     plan: free
     region: oregon
     buildCommand: "./build.sh"
-    startCommand: "gunicorn app.main:app --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 120"
+    startCommand: "gunicorn app.main:app --workers 1 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 120"
     envVars:
       - key: GEMINI_API_KEY
         fromSecret: GEMINI_API_KEY
       - key: PYTHON_VERSION
         value: 3.11.8
       - key: DATABASE_URL
-        fromSecret: DATABASE_URL
+        value: "sqlite:///./health_data.db"
     autoDeploy: true
