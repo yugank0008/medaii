@@ -3,12 +3,30 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 import os
+from urllib.parse import urlparse
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./health_data.db"
+# Determine database URL
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./health_data.db")
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
+# Parse database URL for configuration
+parsed_url = urlparse(DATABASE_URL)
+
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        DATABASE_URL, connect_args={"check_same_thread": False}
+    )
+elif DATABASE_URL.startswith("postgresql"):
+    # PostgreSQL configuration
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=5,
+        max_overflow=10,
+        pool_timeout=30,
+        pool_recycle=1800
+    )
+else:
+    engine = create_engine(DATABASE_URL)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
@@ -34,6 +52,7 @@ class Prediction(Base):
     risk = Column(Float)
     explanation = Column(String)
     recommendations = Column(String)
+    input_data = Column(String)  # Store input data as JSON string
     created_at = Column(DateTime, default=datetime.utcnow)
     
     user = relationship("User", back_populates="predictions")
@@ -56,12 +75,17 @@ class Report(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     findings = Column(String)
     advice = Column(String)
+    file_name = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     user = relationship("User", back_populates="reports")
 
 # Create tables
-Base.metadata.create_all(bind=engine)
+try:
+    Base.metadata.create_all(bind=engine)
+    print("Database tables created successfully")
+except Exception as e:
+    print(f"Error creating database tables: {e}")
 
 def get_db():
     db = SessionLocal()
