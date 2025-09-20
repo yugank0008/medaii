@@ -16,10 +16,10 @@ class PDFProcessor:
         try:
             content = await pdf_file.read()
             
-            # First try PyPDF2 for text extraction
+            
             text = self._extract_with_pypdf2(content)
             
-            # If no text found, try OCR
+            
             if not text.strip():
                 text = await self._extract_with_ocr(content)
             
@@ -39,7 +39,7 @@ class PDFProcessor:
                     if page_text:
                         text += page_text + "\n"
         except:
-            pass  # Fall back to OCR
+            pass  
         
         return text
     
@@ -47,14 +47,13 @@ class PDFProcessor:
         """Extract text using OCR"""
         text = ""
         try:
-            # For OCR, we'd need to convert PDF to images first
-            # This is a simplified version - in production, use pdf2image
+            
+            
             with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_pdf:
                 temp_pdf.write(content)
                 temp_pdf_path = temp_pdf.name
             
-            # This is a placeholder - actual OCR implementation would be more complex
-            # You might want to use pdf2image to convert PDF to images first
+            
             text = "OCR extraction would be implemented here"
             
             os.unlink(temp_pdf_path)
@@ -64,5 +63,6 @@ class PDFProcessor:
         
         return text
 
-# Initialize processor
+
 pdf_processor = PDFProcessor()
+
