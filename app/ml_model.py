@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class DiseasePredictor:
     def __init__(self):
         self.model = None
-        # Use absolute path for deployment
+        
         base_dir = Path(__file__).parent.parent
         self.model_path = os.path.join(base_dir, "trained_models", "diabetes_model.joblib")
         self.ensure_directories()
@@ -29,7 +29,7 @@ class DiseasePredictor:
         try:
             logger.info("Training diabetes prediction model...")
             
-            # Create synthetic data for demonstration
+            
             np.random.seed(42)
             n_samples = 1000
             
@@ -46,7 +46,7 @@ class DiseasePredictor:
             
             df = pd.DataFrame(data)
             
-            # Create synthetic target
+            
             conditions = (
                 (df['glucose'] > 140) |
                 (df['bmi'] > 30) |
@@ -56,7 +56,7 @@ class DiseasePredictor:
             
             df['diabetes'] = np.where(conditions, 1, 0)
             
-            # Add some noise
+            
             noise = np.random.choice([0, 1], size=n_samples, p=[0.8, 0.2])
             df['diabetes'] = np.where(noise == 1, 1 - df['diabetes'], df['diabetes'])
             
@@ -67,15 +67,15 @@ class DiseasePredictor:
                 X, y, test_size=0.2, random_state=42
             )
             
-            # Train model
+            
             self.model = RandomForestClassifier(n_estimators=100, random_state=42)
             self.model.fit(X_train, y_train)
             
-            # Evaluate
+            
             y_pred = self.model.predict(X_test)
             accuracy = accuracy_score(y_test, y_pred)
             
-            # Save model
+            
             joblib.dump(self.model, self.model_path)
             
             logger.info(f"Model trained successfully with accuracy: {accuracy:.2f}")
@@ -96,7 +96,7 @@ class DiseasePredictor:
                 self.train_diabetes_model()
         except Exception as e:
             logger.error(f"Model loading failed: {e}")
-            # Create a fallback model
+            
             self._create_fallback_model()
     
     def _create_fallback_model(self):
@@ -104,7 +104,7 @@ class DiseasePredictor:
         try:
             logger.info("Creating fallback model...")
             self.model = RandomForestClassifier(n_estimators=10, random_state=42)
-            # Train on minimal data
+            
             X = np.random.rand(10, 8)
             y = np.random.randint(0, 2, 10)
             self.model.fit(X, y)
@@ -120,11 +120,11 @@ class DiseasePredictor:
             self.load_model()
             
         if self.model is None:
-            # Return a default risk if model is not available
+            
             return 0.3
         
         try:
-            # Prepare input features with defaults
+            
             features = [
                 data.get('age', 30),
                 data.get('bmi', 25),
@@ -136,14 +136,15 @@ class DiseasePredictor:
                 data.get('diabetes_pedigree', 0.5)
             ]
             
-            # Predict probability
+            
             risk_prob = self.model.predict_proba([features])[0][1]
             return float(risk_prob)
             
         except Exception as e:
             logger.error(f"Prediction error: {e}")
-            # Return a safe default value
+            
             return 0.3
 
-# Initialize predictor
+
 predictor = DiseasePredictor()
+
