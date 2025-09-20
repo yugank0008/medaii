@@ -23,7 +23,7 @@ from .gemini_client import gemini_client
 from .pdf_processor import pdf_processor
 from .report_generator import report_generator
 
-# Configure logging
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# Add CORS middleware
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -44,10 +44,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Serve static files
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Email validation function
+
 def validate_email(email: str):
     if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
         raise HTTPException(
@@ -63,7 +63,7 @@ async def root():
 async def health_check(db: Session = Depends(get_db)):
     """Health check endpoint"""
     try:
-        # Test database connection
+        
         db.execute("SELECT 1")
         model_status = "loaded" if predictor.model is not None else "not loaded"
         
@@ -83,7 +83,7 @@ async def health_check(db: Session = Depends(get_db)):
 @app.post("/users/", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     try:
-        # Validate email
+        
         validate_email(user.email)
         
         db_user = db.query(User).filter(User.email == user.email).first()
@@ -112,13 +112,13 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 @app.post("/predict/", response_model=PredictionSchema)
 async def predict_disease_risk(health_data: HealthData, db: Session = Depends(get_db)):
     try:
-        # Predict risk using ML model
+        
         risk_score = predictor.predict_diabetes_risk({
             **health_data.demographics,
             **health_data.vitals
         })
         
-        # Generate explanation using Gemini
+        
         prompt = f"""
         Based on the following health data, provide a clear explanation of diabetes risk:
         Demographics: {health_data.demographics}
@@ -135,12 +135,12 @@ async def predict_disease_risk(health_data: HealthData, db: Session = Depends(ge
         
         gemini_response = gemini_client.call_gemini(prompt)
         
-        # Parse response
+        
         lines = gemini_response.split('\n')
         explanation = lines[0] if lines else "Risk assessment completed"
         recommendations = '\n'.join(lines[1:]) if len(lines) > 1 else "Consult with healthcare provider"
         
-        # Save prediction to database
+        
         db_prediction = Prediction(
             user_id=health_data.user_id,
             disease="Diabetes",
@@ -167,7 +167,7 @@ async def predict_disease_risk(health_data: HealthData, db: Session = Depends(ge
 @app.post("/chat/", response_model=ChatSchema)
 async def chat_with_assistant(chat_data: ChatCreate, db: Session = Depends(get_db)):
     try:
-        # Forward query to Gemini
+        
         prompt = f"""
         You are a helpful health assistant. Answer the following health-related question:
         {chat_data.query}
@@ -180,7 +180,7 @@ async def chat_with_assistant(chat_data: ChatCreate, db: Session = Depends(get_d
         
         response = gemini_client.call_gemini(prompt)
         
-        # Save chat to database
+        
         db_chat = Chat(
             user_id=chat_data.user_id,
             query=chat_data.query,
@@ -208,10 +208,10 @@ async def analyze_medical_report(
     db: Session = Depends(get_db)
 ):
     try:
-        # Extract text from PDF
+    
         extracted_text = await pdf_processor.extract_text_from_pdf(file)
         
-        # Analyze with Gemini
+        
         prompt = f"""
         Analyze this medical report and provide:
         1. Key findings and abnormalities
@@ -224,12 +224,12 @@ async def analyze_medical_report(
         
         analysis = gemini_client.call_gemini(prompt)
         
-        # Split into findings and advice
+        
         parts = analysis.split('\n\n', 1)
         findings = parts[0] if parts else "No specific findings"
         advice = parts[1] if len(parts) > 1 else "Consult with healthcare provider"
         
-        # Save to database
+        
         db_report = Report(
             user_id=user_id,
             findings=findings,
@@ -260,7 +260,7 @@ async def generate_comprehensive_report(
     db: Session = Depends(get_db)
 ):
     try:
-        # Get user data
+        
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             raise HTTPException(
@@ -268,7 +268,7 @@ async def generate_comprehensive_report(
                 detail="User not found"
             )
         
-        # Get prediction data
+        
         prediction_data = None
         if prediction_id:
             prediction = db.query(Prediction).filter(
@@ -283,7 +283,7 @@ async def generate_comprehensive_report(
                     'recommendations': prediction.recommendations
                 }
         
-        # Get chat summary
+        
         chat_summary = ""
         if chat_id:
             chat = db.query(Chat).filter(
@@ -293,7 +293,7 @@ async def generate_comprehensive_report(
             if chat:
                 chat_summary = f"Q: {chat.query}\nA: {chat.response}"
         
-        # Get report findings
+        
         report_findings = ""
         if report_id:
             report = db.query(Report).filter(
@@ -303,7 +303,7 @@ async def generate_comprehensive_report(
             if report:
                 report_findings = f"Findings: {report.findings}\nAdvice: {report.advice}"
         
-        # Generate PDF report
+        
         user_data = {
             'name': user.name,
             'email': user.email,
@@ -370,7 +370,7 @@ def get_report_history(user_id: int, db: Session = Depends(get_db)):
             detail=f"Error fetching report history: {str(e)}"
         )
 
-# Error handler
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
     logger.error(f"Unhandled exception: {exc}")
@@ -378,3 +378,4 @@ async def global_exception_handler(request, exc):
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"detail": "Internal server error"}
     )
+
