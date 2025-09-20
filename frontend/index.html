@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedAI - Your AI Health Assistant</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button id="sidebarToggle" class="menu-toggle" aria-label="Toggle menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <h1 class="logo">
+                    <i class="fas fa-heartbeat"></i>
+                    MedAI
+                </h1>
+            </div>
+            <div class="header-right">
+                <span class="user-status">Welcome</span>
+            </div>
+        </header>
+
+        
+        <div class="main-content">
+            
+            <aside id="sidebar" class="sidebar">
+                <div class="sidebar-header">
+                    <button id="newChatBtn" class="new-chat-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        New Chat
+                    </button>
+                </div>
+                
+                <div class="quick-actions">
+                    <h3>Quick Actions</h3>
+                    <button class="quick-btn" data-prompt="What are common symptoms of flu?">
+                        <div class="quick-btn-icon">
+                            <i class="fas fa-lungs-virus"></i>
+                        </div>
+                        <span>Flu Symptoms</span>
+                    </button>
+                    <button class="quick-btn" data-prompt="How can I lower my blood pressure naturally?">
+                        <div class="quick-btn-icon">
+                            <i class="fas fa-heartbeat"></i>
+                        </div>
+                        <span>Lower Blood Pressure</span>
+                    </button>
+                    <button class="quick-btn" data-prompt="Explain my cholesterol test results">
+                        <div class="quick-btn-icon">
+                            <i class="fas fa-vial"></i>
+                        </div>
+                        <span>Cholesterol Explanation</span>
+                    </button>
+                    <button class="quick-btn" data-prompt="What are healthy eating habits?">
+                        <div class="quick-btn-icon">
+                            <i class="fas fa-apple-alt"></i>
+                        </div>
+                        <span>Healthy Eating</span>
+                    </button>
+                </div>
+                
+                <div class="tools-section">
+                    <h3>Health Tools</h3>
+                    <button id="predictBtn" class="tool-btn">
+                        <div class="tool-btn-icon">
+                            <i class="fas fa-stethoscope"></i>
+                        </div>
+                        Risk Prediction
+                    </button>
+                    <button id="analyzeBtn" class="tool-btn">
+                        <div class="tool-btn-icon">
+                            <i class="fas fa-file-medical"></i>
+                        </div>
+                        Analyze Report
+                    </button>
+                    <button id="generateBtn" class="tool-btn">
+                        <div class="tool-btn-icon">
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        Generate Report
+                    </button>
+                </div>
+            </aside>
+
+            
+            <main class="chat-area">
+                <div id="chatContainer" class="chat-container">
+                    <div class="welcome-screen">
+                        <div class="welcome-content">
+                            <div class="welcome-icon">
+                                <i class="fas fa-comment-medical"></i>
+                            </div>
+                            <h2>Welcome to MedAI</h2>
+                            <p>Your AI-powered health assistant. Ask medical questions, analyze reports, or assess health risks.</p>
+                            <div class="welcome-actions">
+                                <button class="quick-btn large" data-prompt="What are common symptoms of diabetes?">
+                                    <div class="quick-btn-icon">
+                                        <i class="fas fa-syringe"></i>
+                                    </div>
+                                    <span>Diabetes Symptoms</span>
+                                </button>
+                                <button class="quick-btn large" data-prompt="How can I improve my sleep quality?">
+                                    <div class="quick-btn-icon">
+                                        <i class="fas fa-bed"></i>
+                                    </div>
+                                    <span>Sleep Improvement</span>
+                                </button>
+                                <button class="quick-btn large" data-prompt="What exercises are good for heart health?">
+                                    <div class="quick-btn-icon">
+                                        <i class="fas fa-running"></i>
+                                    </div>
+                                    <span>Heart Healthy Exercises</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input-area">
+                    <div class="input-container">
+                        <textarea 
+                            id="messageInput" 
+                            placeholder="Type your health question here..." 
+                            rows="1"
+                            aria-label="Type your message"
+                        ></textarea>
+                        <button id="sendBtn" class="send-btn" aria-label="Send message">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    
+    <div id="modalOverlay" class="modal-overlay"></div>
+
+    
+    <div id="predictionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-stethoscope"></i> Health Risk Prediction</h2>
+                <button class="close-btn" data-modal="predictionModal" aria-label="Close modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="predictionForm" class="modal-body">
+                <div class="form-section">
+                    <h3>Demographics</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="age"><i class="fas fa-birthday-cake"></i> Age</label>
+                            <input type="number" id="age" name="age" min="1" max="120" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="gender"><i class="fas fa-venus-mars"></i> Gender</label>
+                            <select id="gender" name="gender" required>
+                                <option value="">Select</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Lifestyle</h3>
+                    <div class="form-group">
+                        <label for="lifestyle"><i class="fas fa-running"></i> Describe your lifestyle</label>
+                        <textarea id="lifestyle" name="lifestyle" rows="3" placeholder="Exercise habits, diet, sleep patterns, etc."></textarea>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Symptoms</h3>
+                    <div class="form-group">
+                        <label for="symptoms"><i class="fas fa-thermometer-half"></i> Describe any symptoms</label>
+                        <textarea id="symptoms" name="symptoms" rows="3" placeholder="Any health concerns or symptoms you're experiencing"></textarea>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Health Metrics</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="bmi"><i class="fas fa-weight"></i> BMI</label>
+                            <input type="number" id="bmi" name="bmi" step="0.1" min="10" max="50">
+                        </div>
+                        <div class="form-group">
+                            <label for="glucose"><i class="fas fa-tint"></i> Glucose (mg/dL)</label>
+                            <input type="number" id="glucose" name="glucose" min="50" max="300">
+                        </div>
+                        <div class="form-group">
+                            <label for="blood_pressure"><i class="fas fa-heartbeat"></i> Blood Pressure (systolic)</label>
+                            <input type="number" id="blood_pressure" name="blood_pressure" min="70" max="200">
+                        </div>
+                        <div class="form-group">
+                            <label for="diabetes_pedigree"><i class="fas fa-dna"></i> Diabetes Pedigree</label>
+                            <input type="number" id="diabetes_pedigree" name="diabetes_pedigree" step="0.01" min="0" max="2.5">
+                        </div>
+                        <div class="form-group">
+                            <label for="pregnancies"><i class="fas fa-baby"></i> Pregnancies (if applicable)</label>
+                            <input type="number" id="pregnancies" name="pregnancies" min="0" max="20">
+                        </div>
+                        <div class="form-group">
+                            <label for="skin_thickness"><i class="fas fa-ruler"></i> Skin Thickness (mm)</label>
+                            <input type="number" id="skin_thickness" name="skin_thickness" min="0" max="100">
+                        </div>
+                        <div class="form-group">
+                            <label for="insulin"><i class="fas fa-syringe"></i> Insulin (mu U/ml)</label>
+                            <input type="number" id="insulin" name="insulin" min="0" max="900">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-calculator"></i> Calculate Risk
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    
+    <div id="analyzeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-file-medical"></i> Analyze Medical Report</h2>
+                <button class="close-btn" data-modal="analyzeModal" aria-label="Close modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="upload-instructions">
+                    <p><i class="fas fa-info-circle"></i> Upload a PDF medical report for analysis. Our AI will help explain findings and provide insights.</p>
+                </div>
+                
+                <div id="fileUploadArea" class="file-upload-area">
+                    <i class="fas fa-file-pdf"></i>
+                    <p>Drag & drop your PDF here or click to browse</p>
+                    <input type="file" id="reportFile" accept=".pdf" hidden>
+                    <label for="reportFile" class="browse-btn">Browse files</label>
+                </div>
+                
+                <div id="uploadPreview" class="upload-preview" style="display: none;">
+                    <div class="file-info">
+                        <i class="fas fa-file-pdf"></i>
+                        <div class="file-details">
+                            <span id="fileName" class="file-name"></span>
+                            <span id="fileSize" class="file-size"></span>
+                        </div>
+                        <button class="remove-file" aria-label="Remove file">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <button id="analyzeFileBtn" class="btn-primary full-width">
+                        <i class="fas fa-search"></i> Analyze Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+    <div id="loadingModal" class="modal">
+        <div class="modal-content loading-content">
+            <div class="spinner"></div>
+            <p id="loadingText">Processing your request...</p>
+        </div>
+    </div>
+
+    
+    <div id="toastContainer" class="toast-container"></div>
+
+    
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <script src="script.js" defer></script>
+</body>
+                                  </html>
