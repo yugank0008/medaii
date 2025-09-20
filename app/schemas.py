@@ -9,7 +9,7 @@ class UserBase(BaseModel):
 
     @field_validator('email')
     def validate_email(cls, v):
-        # Simple email validation without external dependency
+        
         if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', v):
             raise ValueError('Invalid email format')
         return v
@@ -82,3 +82,4 @@ class HealthData(BaseModel):
     lifestyle: dict
     symptoms: dict
     vitals: dict
+
