@@ -5,10 +5,10 @@ from datetime import datetime
 import os
 from urllib.parse import urlparse
 
-# Determine database URL
+
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./health_data.db")
 
-# Parse database URL for configuration
+
 parsed_url = urlparse(DATABASE_URL)
 
 if DATABASE_URL.startswith("sqlite"):
@@ -16,7 +16,7 @@ if DATABASE_URL.startswith("sqlite"):
         DATABASE_URL, connect_args={"check_same_thread": False}
     )
 elif DATABASE_URL.startswith("postgresql"):
-    # PostgreSQL configuration
+    
     engine = create_engine(
         DATABASE_URL,
         pool_size=5,
@@ -80,7 +80,7 @@ class Report(Base):
     
     user = relationship("User", back_populates="reports")
 
-# Create tables
+
 try:
     Base.metadata.create_all(bind=engine)
     print("Database tables created successfully")
@@ -94,5 +94,6 @@ def get_db():
     finally:
         db.close()
 
-# Export models for easy import
+
 __all__ = ['User', 'Prediction', 'Chat', 'Report', 'get_db', 'Base']
+
