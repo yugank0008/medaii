@@ -43,6 +43,7 @@ class GeminiClient:
         except (KeyError, IndexError) as e:
             raise HTTPException(status_code=500, detail=f"Invalid response from Gemini API: {str(e)}")
 
-# Initialize Gemini client
+
 gemini_client = GeminiClient()
+
 
