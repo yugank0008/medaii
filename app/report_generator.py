@@ -25,17 +25,17 @@ class ReportGenerator:
         doc = SimpleDocTemplate(filepath, pagesize=letter)
         story = []
         
-        # Title
+        
         title_style = ParagraphStyle(
             'Title',
             parent=self.styles['Heading1'],
             fontSize=24,
             spaceAfter=30,
-            alignment=1  # center
+            alignment=1  
         )
         story.append(Paragraph("Health Assessment Report", title_style))
         
-        # User Information
+        
         story.append(Paragraph("Personal Information", self.styles['Heading2']))
         user_info = [
             ["Name:", user_data.get('name', 'N/A')],
@@ -58,7 +58,7 @@ class ReportGenerator:
         story.append(user_table)
         story.append(Spacer(1, 20))
         
-        # Risk Assessment
+        
         story.append(Paragraph("Disease Risk Assessment", self.styles['Heading2']))
         risk_info = [
             ["Disease:", prediction.get('disease', 'N/A')],
@@ -80,7 +80,7 @@ class ReportGenerator:
         story.append(risk_table)
         story.append(Spacer(1, 20))
         
-        # Recommendations
+        
         story.append(Paragraph("Recommendations", self.styles['Heading2']))
         recommendations = prediction.get('recommendations', '').split('\n')
         for rec in recommendations:
@@ -89,22 +89,23 @@ class ReportGenerator:
         
         story.append(Spacer(1, 20))
         
-        # Chat Summary
+        
         if chat_summary:
             story.append(Paragraph("Chat Summary", self.styles['Heading2']))
             story.append(Paragraph(chat_summary, self.styles['BodyText']))
             story.append(Spacer(1, 20))
         
-        # Report Findings
+        
         if report_findings:
             story.append(Paragraph("Medical Report Analysis", self.styles['Heading2']))
             story.append(Paragraph(report_findings, self.styles['BodyText']))
             story.append(Spacer(1, 20))
         
-        # Build PDF
+        
         doc.build(story)
         
         return filepath
 
-# Initialize generator
+
 report_generator = ReportGenerator()
+
