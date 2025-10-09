@@ -10,7 +10,7 @@ class GeminiClient:
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY environment variable is required")
         
-        self.base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+        self.base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
     
     def call_gemini(self, prompt: str) -> str:
         try:
@@ -45,5 +45,6 @@ class GeminiClient:
 
 
 gemini_client = GeminiClient()
+
 
 
